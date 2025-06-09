@@ -1,114 +1,112 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './Form.css';
 
-const debounce = (fn, delay) => {
-  let timeout;
-  return (...args) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => fn(...args), delay);
-  };
-};
-
 const Form = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+  });
 
-  const [errors, setErrors] = useState({ name: '', email: '', password: '' });
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
-  const showError = (field, message) => {
+  const debounce = (fn, delay = 300) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => fn(...args), delay);
+    };
+  };
+
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setTouched((prev) => ({ ...prev, [field]: true }));
+
+    debouncedValidateField(field, value);
+  };
+
+  const validateField = (field, value) => {
+    let message = '';
+
+    if (field === 'name') {
+      if (!value.trim()) message = 'Name is required.';
+      else if (!/^[A-Za-z\s]+$/.test(value)) message = 'Name can only contain alphabets.';
+    }
+
+    if (field === 'email') {
+      if (!value.trim()) message = 'Email is required.';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) message = 'Enter a valid email.';
+    }
+
+    if (field === 'password') {
+      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(value);
+      const hasNumber = /\d/.test(value);
+      const notSameAsName = value.toLowerCase() !== formData.name.toLowerCase();
+
+      if (value.length < 6) message = 'Password must be at least 6 characters.';
+      else if (!hasSpecialChar) message = 'Password must contain a special character.';
+      else if (!hasNumber) message = 'Password must include a number.';
+      else if (!notSameAsName) message = 'Password should not be the same as the name.';
+    }
+
     setErrors((prev) => ({ ...prev, [field]: message }));
   };
 
-  const clearErrors = () => {
-    setErrors({ name: '', email: '', password: '' });
-  };
-
-  const validate = () => {
-    let valid = true;
-    clearErrors();
-
-    if (name.trim() === '') {
-      showError('name', 'Name is required.');
-      valid = false;
-    } else if (!/^[A-Za-z\s]+$/.test(name)) {
-      showError('name', 'Name can only contain alphabets.');
-      valid = false;
-    }
-
-    if (email.trim() === '') {
-      showError('email', 'Email is required.');
-      valid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showError('email', 'Enter a valid email.');
-      valid = false;
-    }
-
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const notSameAsName = password.toLowerCase() !== name.toLowerCase();
-
-    if (password.length < 6) {
-      showError('password', 'Password must be at least 6 characters.');
-      valid = false;
-    } else if (!hasSpecialChar) {
-      showError('password', 'Password must contain a special character.');
-      valid = false;
-    } else if (!hasNumber) {
-      showError('password', 'Password must include a number.');
-      valid = false;
-    } else if (!notSameAsName) {
-      showError('password', 'Password should not be the same as the name.');
-      valid = false;
-    }
-
-    return valid;
-  };
+  const debouncedValidateField = debounce(validateField);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validate()) {
+
+    const allErrors = {};
+    validateField('name', formData.name);
+    validateField('email', formData.email);
+    validateField('password', formData.password);
+
+    if (!formData.name.trim()) allErrors.name = 'Name is required.';
+    if (!formData.email.trim()) allErrors.email = 'Email is required.';
+    if (!formData.password.trim()) allErrors.password = 'Password is required.';
+
+    setTouched({ name: true, email: true, password: true });
+
+    const isFormValid = Object.values(allErrors).every((msg) => msg === '');
+
+    if (isFormValid) {
       alert('Form submitted successfully!');
-      setName('');
-      setEmail('');
-      setPassword('');
-      clearErrors();
+      setFormData({ name: '', email: '', password: '' });
+      setErrors({});
+      setTouched({});
     }
   };
-
-  // Debounced validation
-  useEffect(() => {
-    debounce(() => {
-      if (name !== '') validate();
-    }, 300)();
-  }, [name]);
-
-  useEffect(() => {
-    debounce(() => {
-      if (email !== '') validate();
-    }, 300)();
-  }, [email]);
-
-  useEffect(() => {
-    debounce(() => {
-      if (password !== '') validate();
-    }, 300)();
-  }, [password]);
 
   return (
     <div className="form-container">
       <form onSubmit={handleSubmit} noValidate>
         <label htmlFor="name">Name</label>
-        <input id="name" value={name} onChange={(e) => setName(e.target.value)} />
-        <div className="error">{errors.name}</div>
+        <input
+          id="name"
+          value={formData.name}
+          onChange={(e) => handleChange('name', e.target.value)}
+        />
+        {touched.name && errors.name && <div className="error">{errors.name}</div>}
 
         <label htmlFor="email">Email</label>
-        <input id="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <div className="error">{errors.email}</div>
+        <input
+          id="email"
+          type="email"
+          value={formData.email}
+          onChange={(e) => handleChange('email', e.target.value)}
+        />
+        {touched.email && errors.email && <div className="error">{errors.email}</div>}
 
         <label htmlFor="password">Password</label>
-        <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <div className="error">{errors.password}</div>
+        <input
+          id="password"
+          type="password"
+          value={formData.password}
+          onChange={(e) => handleChange('password', e.target.value)}
+        />
+        {touched.password && errors.password && <div className="error">{errors.password}</div>}
 
         <button type="submit">Submit</button>
       </form>
